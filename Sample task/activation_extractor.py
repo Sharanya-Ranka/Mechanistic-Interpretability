@@ -8,7 +8,7 @@ import os
 import torch
 import logging
 from transformer_lens import HookedTransformer
-from data_fetcher import fetch_wiki_articles
+from wiki_data_fetcher import fetch_wiki_articles
 from config import Config
 from tqdm import tqdm
 
@@ -77,9 +77,10 @@ def extract_and_save_activations():
 
     # 2. Load the model using TransformerLens
     logger.info(f"Loading model: {Config.MODEL_NAME} on device: {Config.DEVICE}")
+    breakpoint()
     try:
         model = HookedTransformer.from_pretrained(
-            Config.MODEL_NAME, device=Config.DEVICE
+            Config.MODEL_NAME, device=Config.DEVICE, center_unembed=False
         )
     except Exception as e:
         logger.error(f"Failed to load model. Please check your setup. Error: {e}")

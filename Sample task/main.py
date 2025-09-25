@@ -7,7 +7,7 @@ import logging
 import os
 from activation_extractor import extract_and_save_activations, load_activations
 from linear_probe import train_and_evaluate_linear_probe
-from sae_trainer import train_sae_and_analyze
+from sae import train_sae_and_analyze
 from config import Config
 
 # Configure basic logging for the main runner
@@ -33,6 +33,7 @@ def run_task():
         activations, labels = load_activations()
     else:
         logger.info("No activation file found. Starting extraction process.")
+        # breakpoint()
         file_path = extract_and_save_activations()
         if not file_path:
             logger.error("Activation extraction failed. Exiting.")

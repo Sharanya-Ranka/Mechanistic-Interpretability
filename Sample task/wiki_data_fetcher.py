@@ -5,6 +5,7 @@ It uses the 'wikipedia-api' library for easy access to article content.
 import wikipediaapi
 from config import Config
 import logging
+import json
 
 # Set up logging for this module
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -24,8 +25,8 @@ def fetch_wiki_articles(en_title: str, ja_title: str, num_paragraphs: int = 10):
               or None if fetching fails.
     """
     try:
-        wiki_en = wikipediaapi.Wikipedia('en', 'MyProjectName/v1.0 (test@example.com)')
-        wiki_ja = wikipediaapi.Wikipedia('ja', 'MyProjectName/v1.0 (test@example.com)')
+        wiki_en = wikipediaapi.Wikipedia(language='en', user_agent='MechanisticInterpretability/v1.0 (sharanya.ranka@gmail.com)')
+        wiki_ja = wikipediaapi.Wikipedia(language='ja', user_agent='MechanisticInterpretability/v1.0 (sharanya.ranka@gmail.com)')
 
         en_page = wiki_en.page(en_title)
         ja_page = wiki_ja.page(ja_title)
@@ -49,3 +50,8 @@ def fetch_wiki_articles(en_title: str, ja_title: str, num_paragraphs: int = 10):
     except Exception as e:
         logger.error(f"An error occurred while fetching Wikipedia articles: {e}")
         return None
+
+
+if __name__ == "__main__":
+    d = fetch_wiki_articles(Config.EN_ARTICLE_TITLE, Config.JA_ARTICLE_TITLE, 2)
+    print(json.dumps(d, indent=4))

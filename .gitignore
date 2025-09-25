@@ -1,0 +1,5 @@
+# Ignore all pycache
+__pycache__/
+
+# Ignore ipynb
+.ipynb_checkpoints/
