@@ -22,12 +22,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_activations_from_text(texts, model, tokenizer, layer_index):
+def get_activations_from_text(text, model, tokenizer, layer_index):
     """
     Passes text through the model and extracts the activations of a specific layer.
 
     Args:
-        texts (list): A list of text strings.
+        texts (str): A string
         model (HookedTransformer): The loaded TransformerLens model.
         layer_index (int): The index of the layer to extract activations from.
 
@@ -51,7 +51,7 @@ def get_activations_from_text(texts, model, tokenizer, layer_index):
     # # The shape will be (batch_size, sequence_length, activation_dim)
     # return torch.cat(all_activations, dim=0)
 
-    def gather_residual_activations(model, target_layer, inputs):
+    def gather_residual_activations(model, inputs):
         target_act = []
         all_handles = []
 
@@ -62,7 +62,7 @@ def get_activations_from_text(texts, model, tokenizer, layer_index):
 
         for layer_ind in range(26):
             all_handles.append(
-                model.model.layers[target_layer].register_forward_hook(
+                model.model.layers[layer_ind].register_forward_hook(
                     gather_target_act_hook
                 )
             )
@@ -72,12 +72,13 @@ def get_activations_from_text(texts, model, tokenizer, layer_index):
         for handle in all_handles:
             handle.remove()
 
-        return target_act
+        return torch.cat(target_act, dim=0)
 
-    inputs = tokenizer.encode(texts, return_tensors="pt", add_special_tokens=True).to(
+    inputs = tokenizer.encode(text, return_tensors="pt", add_special_tokens=True).to(
         "cuda"
     )
-    breakpoint()
+
+    # breakpoint()
     target_act = gather_residual_activations(model, inputs)
 
     return target_act
@@ -105,10 +106,10 @@ def extract_and_save_activations():
     # Prepare texts and labels
     en_text_lines = [
         line.strip() for line in wiki_data["english"].split("\n") if line.strip()
-    ]
+    ][:2]
     ja_text_lines = [
         line.strip() for line in wiki_data["japanese"].split("\n") if line.strip()
-    ]
+    ][:2]
     texts = en_text_lines + ja_text_lines
     labels = [0] * len(en_text_lines) + [1] * len(
         ja_text_lines
@@ -121,6 +122,7 @@ def extract_and_save_activations():
     local_model_filepath = Config.LOCAL_MODEL_FILEPATH
 
     tokenizer = AutoTokenizer.from_pretrained(local_model_filepath)
+    # model = None
     model = AutoModelForCausalLM.from_pretrained(
         local_model_filepath,
         device_map="auto",
@@ -129,25 +131,31 @@ def extract_and_save_activations():
 
     # Check how many layers in the model
     # Can you enable quantization using Prud's config?
-    breakpoint()
+    # breakpoint()
 
     # 3. Get activations from the model
-    raw_activations = get_activations_from_text(
-        texts, model, tokenizer, Config.TARGET_LAYER_INDEX
-    )
+    en_text_activations = []
+    for en_ind, en_text in enumerate(en_text_lines):
+        print(f"English {en_ind}")
+        raw_activations = get_activations_from_text(
+            en_text, model, tokenizer, Config.TARGET_LAYER_INDEX
+        )
+        en_text_activations.append(raw_activations.cpu())
+
+    ja_text_activations = []
+    for ja_ind, ja_text in enumerate(ja_text_lines):
+        print(f"Japanese {ja_ind}")
+        raw_activations = get_activations_from_text(
+            ja_text, model, tokenizer, Config.TARGET_LAYER_INDEX
+        )
+        ja_text_activations.append(raw_activations.cpu())
 
     breakpoint()
 
     # 4. Save the activations and labels
     data_to_save = {
-        "activations": raw_activations.cpu(),
-        "labels": torch.tensor(labels),
-        "metadata": {
-            "model_name": Config.MODEL_NAME,
-            "layer_index": Config.TARGET_LAYER_INDEX,
-            "en_article": Config.EN_ARTICLE_TITLE,
-            "ja_article": Config.JA_ARTICLE_TITLE,
-        },
+        "en_text_activations": en_text_activations,
+        "ja_text_activations": ja_text_activations,
     }
     torch.save(data_to_save, Config.ACTIVATION_FILE_PATH)
     logger.info(f"Activations saved to {Config.ACTIVATION_FILE_PATH}")
