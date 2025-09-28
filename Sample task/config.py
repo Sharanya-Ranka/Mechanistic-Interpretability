@@ -17,11 +17,13 @@ class Config:
     JA_ARTICLE_TITLE = "人工知能"  # Japanese for "Artificial intelligence"
     # Number of paragraphs to extract from each article
     NUM_PARAGRAPHS = 10
+    WIKI_DUMP_FILEPATH = "wiki_data_dump.json"
 
     # --- Model and Activation Extraction Settings ---
     # The Hugging Face model to load for activation extraction.
     # We use a Gemma 2B model for this task.
     MODEL_NAME = "google/gemma-2-2b"
+    LOCAL_MODEL_FILEPATH = "/content/drive/MyDrive/Gemma2_2bModel"
     # The index of the transformer layer from which to extract activations.
     # Note: Gemma 2B has 18 layers (0 to 17).
     TARGET_LAYER_INDEX = 17

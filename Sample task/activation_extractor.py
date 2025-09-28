@@ -7,9 +7,12 @@ specified transformer layer. The activations are then saved to a file.
 import os
 import torch
 import logging
-from transformer_lens import HookedTransformer
+
+# from transformer_lens import HookedTransformer
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from wiki_data_fetcher import fetch_wiki_articles
 from config import Config
+import json
 from tqdm import tqdm
 
 # Set up logging for this module
@@ -19,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_activations_from_text(texts, model, layer_index):
+def get_activations_from_text(texts, model, tokenizer, layer_index):
     """
     Passes text through the model and extracts the activations of a specific layer.
 
@@ -31,22 +34,53 @@ def get_activations_from_text(texts, model, layer_index):
     Returns:
         torch.Tensor: A tensor of activations for all texts.
     """
-    all_activations = []
-    logger.info(f"Extracting activations from layer {layer_index}...")
+    # all_activations = []
+    # logger.info(f"Extracting activations from layer {layer_index}...")
 
-    with tqdm(total=len(texts), desc="Extracting Activations") as pbar:
-        for text in texts:
-            # We use `run_with_cache` to get the activations
-            # The cache contains all the intermediate activations of the model.
-            logits, cache = model.run_with_cache(text, prepend_bos=True)
-            # Get the residual stream activations from the specified layer
-            activations = cache[f"blocks.{layer_index}.hook_resid_post"]
-            all_activations.append(activations.detach())
-            pbar.update(1)
+    # with tqdm(total=len(texts), desc="Extracting Activations") as pbar:
+    #     for text in texts:
+    #         # We use `run_with_cache` to get the activations
+    #         # The cache contains all the intermediate activations of the model.
+    #         logits, cache = model.run_with_cache(text, prepend_bos=True)
+    #         # Get the residual stream activations from the specified layer
+    #         activations = cache[f"blocks.{layer_index}.hook_resid_post"]
+    #         all_activations.append(activations.detach())
+    #         pbar.update(1)
 
-    # Concatenate activations from all texts
-    # The shape will be (batch_size, sequence_length, activation_dim)
-    return torch.cat(all_activations, dim=0)
+    # # Concatenate activations from all texts
+    # # The shape will be (batch_size, sequence_length, activation_dim)
+    # return torch.cat(all_activations, dim=0)
+
+    def gather_residual_activations(model, target_layer, inputs):
+        target_act = []
+        all_handles = []
+
+        def gather_target_act_hook(mod, inputs, outputs):
+            nonlocal target_act  # make sure we can modify the target_act from the outer scope
+            target_act.append(outputs[0])
+            return outputs
+
+        for layer_ind in range(26):
+            all_handles.append(
+                model.model.layers[target_layer].register_forward_hook(
+                    gather_target_act_hook
+                )
+            )
+
+        _ = model.forward(inputs)
+
+        for handle in all_handles:
+            handle.remove()
+
+        return target_act
+
+    inputs = tokenizer.encode(texts, return_tensors="pt", add_special_tokens=True).to(
+        "cuda"
+    )
+    breakpoint()
+    target_act = gather_residual_activations(model, inputs)
+
+    return target_act
 
 
 def extract_and_save_activations():
@@ -55,10 +89,15 @@ def extract_and_save_activations():
     """
     logger.info("Starting activation extraction process...")
 
+    torch.set_grad_enabled(False)
+
     # 1. Fetch data from Wikipedia
-    wiki_data = fetch_wiki_articles(
-        Config.EN_ARTICLE_TITLE, Config.JA_ARTICLE_TITLE, Config.NUM_PARAGRAPHS
-    )
+    wiki_dump_filepath = Config.WIKI_DUMP_FILEPATH
+    with open(wiki_dump_filepath, "r", encoding="utf-8") as f:
+        # Use ensure_ascii=False to correctly handle Japanese characters
+        wiki_data = json.load(f)
+        # json.dump(data, f, ensure_ascii=False, indent=4)
+
     if not wiki_data:
         logger.error("Failed to fetch Wikipedia data. Exiting.")
         return None
@@ -75,19 +114,29 @@ def extract_and_save_activations():
         ja_text_lines
     )  # 0 for English, 1 for Japanese
 
+    # breakpoint()
     # 2. Load the model using TransformerLens
-    logger.info(f"Loading model: {Config.MODEL_NAME} on device: {Config.DEVICE}")
+    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+
+    local_model_filepath = Config.LOCAL_MODEL_FILEPATH
+
+    tokenizer = AutoTokenizer.from_pretrained(local_model_filepath)
+    model = AutoModelForCausalLM.from_pretrained(
+        local_model_filepath,
+        device_map="auto",
+        # quantization_config=quantization_config,
+    )
+
+    # Check how many layers in the model
+    # Can you enable quantization using Prud's config?
     breakpoint()
-    try:
-        model = HookedTransformer.from_pretrained(
-            Config.MODEL_NAME, device=Config.DEVICE, center_unembed=False
-        )
-    except Exception as e:
-        logger.error(f"Failed to load model. Please check your setup. Error: {e}")
-        return None
 
     # 3. Get activations from the model
-    raw_activations = get_activations_from_text(texts, model, Config.TARGET_LAYER_INDEX)
+    raw_activations = get_activations_from_text(
+        texts, model, tokenizer, Config.TARGET_LAYER_INDEX
+    )
+
+    breakpoint()
 
     # 4. Save the activations and labels
     data_to_save = {
