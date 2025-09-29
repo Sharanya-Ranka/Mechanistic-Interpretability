@@ -34,22 +34,6 @@ def get_activations_from_text(text, model, tokenizer, layer_index):
     Returns:
         torch.Tensor: A tensor of activations for all texts.
     """
-    # all_activations = []
-    # logger.info(f"Extracting activations from layer {layer_index}...")
-
-    # with tqdm(total=len(texts), desc="Extracting Activations") as pbar:
-    #     for text in texts:
-    #         # We use `run_with_cache` to get the activations
-    #         # The cache contains all the intermediate activations of the model.
-    #         logits, cache = model.run_with_cache(text, prepend_bos=True)
-    #         # Get the residual stream activations from the specified layer
-    #         activations = cache[f"blocks.{layer_index}.hook_resid_post"]
-    #         all_activations.append(activations.detach())
-    #         pbar.update(1)
-
-    # # Concatenate activations from all texts
-    # # The shape will be (batch_size, sequence_length, activation_dim)
-    # return torch.cat(all_activations, dim=0)
 
     def gather_residual_activations(model, inputs):
         target_act = []
@@ -74,6 +58,7 @@ def get_activations_from_text(text, model, tokenizer, layer_index):
 
         return torch.cat(target_act, dim=0)
 
+    tokenized_text = tokenizer.tokenize(text)
     inputs = tokenizer.encode(text, return_tensors="pt", add_special_tokens=True).to(
         "cuda"
     )
@@ -81,7 +66,7 @@ def get_activations_from_text(text, model, tokenizer, layer_index):
     # breakpoint()
     target_act = gather_residual_activations(model, inputs)
 
-    return target_act
+    return target_act, tokenized_text
 
 
 def extract_and_save_activations():
@@ -104,16 +89,8 @@ def extract_and_save_activations():
         return None
 
     # Prepare texts and labels
-    en_text_lines = [
-        line.strip() for line in wiki_data["english"].split("\n") if line.strip()
-    ][:2]
-    ja_text_lines = [
-        line.strip() for line in wiki_data["japanese"].split("\n") if line.strip()
-    ][:2]
-    texts = en_text_lines + ja_text_lines
-    labels = [0] * len(en_text_lines) + [1] * len(
-        ja_text_lines
-    )  # 0 for English, 1 for Japanese
+    en_text_lines = [line.strip() for line in wiki_data["english"] if line.strip()]
+    ja_text_lines = [line.strip() for line in wiki_data["japanese"] if line.strip()]
 
     # breakpoint()
     # 2. Load the model using TransformerLens
@@ -135,27 +112,33 @@ def extract_and_save_activations():
 
     # 3. Get activations from the model
     en_text_activations = []
+    en_text_tokenized = []
     for en_ind, en_text in enumerate(en_text_lines):
         print(f"English {en_ind}")
-        raw_activations = get_activations_from_text(
-            en_text, model, tokenizer, Config.TARGET_LAYER_INDEX
+        raw_activations, tokenized_text = get_activations_from_text(
+            en_text, model, tokenizer
         )
         en_text_activations.append(raw_activations.cpu())
+        en_text_tokenized.append(tokenized_text)
 
     ja_text_activations = []
+    ja_text_tokenized = []
     for ja_ind, ja_text in enumerate(ja_text_lines):
         print(f"Japanese {ja_ind}")
-        raw_activations = get_activations_from_text(
-            ja_text, model, tokenizer, Config.TARGET_LAYER_INDEX
+        raw_activations, tokenized_text = get_activations_from_text(
+            ja_text, model, tokenizer
         )
         ja_text_activations.append(raw_activations.cpu())
+        ja_text_tokenized.append(tokenized_text)
 
     breakpoint()
 
     # 4. Save the activations and labels
     data_to_save = {
         "en_text_activations": en_text_activations,
+        "en_text_tokenized": en_text_tokenized,
         "ja_text_activations": ja_text_activations,
+        "ja_text_tokenized": ja_text_tokenized,
     }
     torch.save(data_to_save, Config.ACTIVATION_FILE_PATH)
     logger.info(f"Activations saved to {Config.ACTIVATION_FILE_PATH}")

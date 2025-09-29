@@ -7,6 +7,7 @@ import wikipediaapi
 from config import Config
 import logging
 import json
+import time
 
 # Set up logging for this module
 logging.basicConfig(
@@ -67,25 +68,33 @@ def save_wiki_data() -> bool:
     Returns:
         bool: True if data was successfully fetched and saved, False otherwise.
     """
-    logger.info(
-        f"Starting data fetch for EN: '{Config.EN_ARTICLE_TITLE}' and JA: '{Config.JA_ARTICLE_TITLE}'..."
-    )
-    logger.info(f"Attempting to extract {Config.NUM_PARAGRAPHS} paragraphs from each.")
+    all_data = {"english": [], "japanese": []}
+    for en_title, ja_title in zip(Config.EN_ARTICLE_TITLES, Config.JA_ARTICLE_TITLES):
+        time.sleep(1)
+        logger.info(f"Fetching data for EN: '{en_title}' and JA: '{ja_title}'...")
+        data = fetch_wiki_articles(
+            en_title=en_title, ja_title=ja_title, num_paragraphs=Config.NUM_PARAGRAPHS
+        )
 
-    # 1. Call fetch_wiki_articles with parameters from Config
-    data = fetch_wiki_articles(
-        en_title=Config.EN_ARTICLE_TITLE,
-        ja_title=Config.JA_ARTICLE_TITLE,
-        num_paragraphs=Config.NUM_PARAGRAPHS,
-    )
+        if data is None:
+            logger.warning(
+                f"Skipping articles '{en_title}' and '{ja_title}' due to fetch failure."
+            )
+            continue
 
-    if data:
+        all_data["english"].append(data["english"])
+        all_data["japanese"].append(data["japanese"])
+
+    print(
+        f"Fetched {len(all_data['english'])} English articles and {len(all_data['japanese'])} Japanese articles."
+    )
+    if all_data:
         # 2. Save the results to a JSON file
         try:
             filepath = Config.WIKI_DUMP_FILEPATH
             with open(filepath, "w", encoding="utf-8") as f:
                 # Use ensure_ascii=False to correctly handle Japanese characters
-                json.dump(data, f, ensure_ascii=False, indent=4)
+                json.dump(all_data, f, ensure_ascii=False, indent=4)
             logger.info(f"Successfully saved fetched data to {filepath}")
             return True
         except IOError as e:

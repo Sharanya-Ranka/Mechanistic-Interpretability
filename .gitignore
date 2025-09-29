@@ -3,3 +3,6 @@ __pycache__/
 
 # Ignore ipynb
 .ipynb_checkpoints/
+
+# Ignore data files
+wiki_data_dump.json

@@ -13,8 +13,74 @@ class Config:
 
     # --- Data Fetching Settings ---
     # Wikipedia article titles to fetch in English and Japanese
-    EN_ARTICLE_TITLE = "Artificial intelligence"
-    JA_ARTICLE_TITLE = "人工知能"  # Japanese for "Artificial intelligence"
+    EN_ARTICLE_TITLES = [
+        "Artificial intelligence",
+        "The Beatles",
+        "World War II",
+        "United States",
+        "Japan",
+        "ChatGPT",
+        "Evolution",
+        "Albert Einstein",
+        "William Shakespeare",
+        "New York City",
+        "Michael Jackson",
+        "Anime",
+        "Manga",
+        "Buddhism",
+        "Tokyo",
+        "Super Mario Bros.",
+        "The Lord of the Rings",
+        "Lionel Messi",
+        "COVID-19 pandemic",
+        "History of Japan",
+        "Culture of Japan",
+        "The Tale of Genji",
+        "Samurai",
+        "Godzilla",
+        "Pokémon",
+        "Final Fantasy",
+        "Nintendo",
+        "Hayao Miyazaki",
+        "Seven Samurai",
+        "Akira Kurosawa",
+        "Seppuku",
+        "Tsunami",
+    ]
+    JA_ARTICLE_TITLES = [
+        "人工知能",
+        "ザ・ビートルズ",
+        "第二次世界大戦",
+        "アメリカ合衆国",
+        "日本",
+        "ChatGPT",
+        "進化論",
+        "アルベルト・アインシュタイン",
+        "ウィリアム・シェイクスピア",
+        "ニューヨーク市",
+        "マイケル・ジャクソン",
+        "アニメ",
+        "漫画",
+        "仏教",
+        "東京",
+        "スーパーマリオブラザーズ",
+        "指輪物語",
+        "リオネル・メッシ",
+        "COVID-19",
+        "日本の歴史",
+        "日本文化",
+        "源氏物語",
+        "侍",
+        "ゴジラ",
+        "ポケットモンスター",
+        "ファイナルファンタジー",
+        "任天堂",
+        "宮崎駿",
+        "七人の侍",
+        "黒澤明",
+        "切腹",
+        "津波",
+    ]
     # Number of paragraphs to extract from each article
     NUM_PARAGRAPHS = 10
     WIKI_DUMP_FILEPATH = "wiki_data_dump.json"
@@ -30,7 +96,7 @@ class Config:
 
     # --- File Paths ---
     # Path to save the extracted activations.
-    ACTIVATION_FILE_PATH = "gemma2_activations_l{}.pt".format(TARGET_LAYER_INDEX)
+    ACTIVATION_FILE_PATH = "gemma2_activations.pt".format(TARGET_LAYER_INDEX)
 
     # --- Sparse Autoencoder Settings ---
     # Dimensionality of the original activations
