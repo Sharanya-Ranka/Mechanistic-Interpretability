@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_activations_from_text(text, model, tokenizer, layer_index):
+def get_activations_from_text(text, model, tokenizer):
     """
     Passes text through the model and extracts the activations of a specific layer.
 
